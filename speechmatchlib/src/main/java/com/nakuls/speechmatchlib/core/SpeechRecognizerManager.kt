@@ -6,53 +6,76 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.util.Locale
 
 class SpeechRecognizerManager(
     private val application: Application
 ) {
 
     private var recognizer: SpeechRecognizer? = null
-    private val _spokenText = MutableStateFlow<String?>(null)
-    val spokenText: StateFlow<String?> = _spokenText
+    private val _spokenText = MutableStateFlow("Idle")
+    val spokenText: StateFlow<String> = _spokenText
 
     fun startListening() {
-        if (!SpeechRecognizer.isRecognitionAvailable(application)) return
-
-        recognizer = SpeechRecognizer.createSpeechRecognizer(application).apply {
-            setRecognitionListener(object : RecognitionListener{
-                override fun onResults(results: Bundle?) {
-                    val matches = results
-                        ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    _spokenText.value = matches?.firstOrNull()
-                }
-
-                override fun onError(error: Int) {
-                    _spokenText.value = null
-                }
-
-                override fun onReadyForSpeech(params: Bundle?) {}
-                override fun onBeginningOfSpeech() {}
-                override fun onRmsChanged(rmsdB: Float) {}
-                override fun onBufferReceived(buffer: ByteArray?) {}
-                override fun onEndOfSpeech() {}
-                override fun onPartialResults(partialResults: Bundle?) {}
-                override fun onEvent(eventType: Int, params: Bundle?) {}
-            })
+        if (!SpeechRecognizer.isRecognitionAvailable(application)) {
+            _spokenText.value = "Speech recognition not available"
+            return
         }
 
+        if (recognizer == null) {
+            recognizer = SpeechRecognizer.createSpeechRecognizer(application)
+        }
+
+        recognizer?.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {
+                _spokenText.value = "Listening..."
+            }
+
+            override fun onBeginningOfSpeech() {
+                _spokenText.value = "Speak now..."
+            }
+
+            override fun onEndOfSpeech() {
+                // User stopped speaking → recognizer will deliver results in onResults
+                _spokenText.value = "Processing..."
+            }
+
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                val text = matches?.firstOrNull().orEmpty()
+                _spokenText.value = "Heard: $text"
+            }
+
+            override fun onError(error: Int) {
+                _spokenText.value = "Error code: $error"
+            }
+
+            override fun onPartialResults(partialResults: Bundle?) {
+                val partial = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!partial.isNullOrEmpty()) {
+                    _spokenText.value = "Partial: ${partial.first()}"
+                }
+            }
+
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
         }
         recognizer?.startListening(intent)
     }
 
-    fun stopListening() {
-        recognizer?.stopListening()
-        recognizer?.cancel()
+    fun release() {
         recognizer?.destroy()
         recognizer = null
     }
