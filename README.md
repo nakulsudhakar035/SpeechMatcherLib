@@ -36,7 +36,6 @@ Compare spoken words with target text and compute similarity scores easily.
 Add the library to your app-level build.gradle:
 
 ```kotlin
-Copy code
 dependencies {
   implementation("com.github.nakulsudhakar035:SpeechMatcherLib:<version>")
 }
@@ -49,14 +48,12 @@ Clone alongside your app project.
 In your app’s settings.gradle:
 
 ```kotlin
-Copy code
 include(":SpeechMatcherLib")
 project(":SpeechMatcherLib").projectDir = file("../SpeechMatcherLib")
 ```
 Add dependency in build.gradle:
 
 ```kotlin
-Copy code
 dependencies {
   implementation(project(":SpeechMatcherLib"))
 }
@@ -64,7 +61,6 @@ dependencies {
 
 🧩 Usage Example
 ```kotlin
-Copy code
 val speechMatcher = SpeechMatcher(context)
 
 // Start listening & match to a target phrase
@@ -84,7 +80,6 @@ threshold	0.75	Minimum score to consider as match
 maxLength	100	Max characters to compare
 
 ```kotlin
-Copy code
 speechMatcher.setThreshold(0.8f)
 speechMatcher.setMaxLength(200)
 ```
