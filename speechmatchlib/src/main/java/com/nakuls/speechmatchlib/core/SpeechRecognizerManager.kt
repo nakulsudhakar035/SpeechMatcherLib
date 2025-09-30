@@ -18,6 +18,8 @@ class SpeechRecognizerManager(
     private var recognizer: SpeechRecognizer? = null
     private val _spokenText = MutableStateFlow("Idle")
     val spokenText: StateFlow<String> = _spokenText
+    private val _isRecording = MutableStateFlow(false)
+    val isRecording: StateFlow<Boolean> = _isRecording
 
     fun startListening() {
         if (!SpeechRecognizer.isRecognitionAvailable(application)) {
@@ -31,15 +33,18 @@ class SpeechRecognizerManager(
 
         recognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
+                _isRecording.value = true
                 _spokenText.value = "Listening..."
             }
 
             override fun onBeginningOfSpeech() {
+                _isRecording.value = true
                 _spokenText.value = "Speak now..."
             }
 
             override fun onEndOfSpeech() {
                 // User stopped speaking → recognizer will deliver results in onResults
+                _isRecording.value = false
                 _spokenText.value = "Processing..."
             }
 
@@ -50,12 +55,14 @@ class SpeechRecognizerManager(
             }
 
             override fun onError(error: Int) {
+                _isRecording.value = false
                 _spokenText.value = "Error code: $error"
             }
 
             override fun onPartialResults(partialResults: Bundle?) {
                 val partial = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!partial.isNullOrEmpty()) {
+                    _isRecording.value = false
                     _spokenText.value = "Partial: ${partial.first()}"
                 }
             }
@@ -76,6 +83,7 @@ class SpeechRecognizerManager(
     }
 
     fun release() {
+        _isRecording.value = false
         recognizer?.destroy()
         recognizer = null
     }
